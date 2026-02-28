@@ -33,13 +33,7 @@ var presets = map[string][]string{
 
 // GetConfiguredCities returns the list of cities to display based on CLI flags and presets.
 func GetConfiguredCities() ([]Region, []Region, bool) {
-	// Check -list flag first
-	if flagList {
-		PrintCitiesList()
-		return nil, nil, false
-	}
-
-	// Check preset flag
+	// Check preset flag first
 	if flagPreset != "" {
 		if flagPreset == "all" {
 			// Show all cities
@@ -51,6 +45,12 @@ func GetConfiguredCities() ([]Region, []Region, bool) {
 			fmt.Fprintf(os.Stderr, "Unknown preset: %s\n", flagPreset)
 			os.Exit(1)
 		}
+	}
+
+	// Check -list flag - shows all available cities but still uses preset if set
+	if flagList {
+		PrintCitiesList()
+		return nil, nil, false
 	}
 
 	// Check -cities flag
