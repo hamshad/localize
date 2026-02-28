@@ -382,22 +382,87 @@ func main() {
 		AddItem(leftClockView, 0, 1, false).
 		AddItem(rightClockView, 0, 1, false)
 
+	// Mode content view - shows mode-specific content
+	modeView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(false)
+	modeView.SetBorder(true).
+		SetTitle(" [ Mode ] ").
+		SetTitleAlign(tview.AlignCenter).
+		SetBorderColor(tcell.ColorYellow)
+
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 3, 0, false).
 		AddItem(mapView, 28, 0, false).
 		AddItem(clockRow, 0, 1, false).
+		AddItem(modeView, 12, 0, false).
 		AddItem(footer, 1, 0, false)
+
+	// ── MODE SYSTEM ──
+	mm := newModeManager()
+
+	// Create and register mode handlers
+	converter := newConverterMode(app)
+	stopwatch := newStopwatchMode()
+	timer := newTimerMode()
+	alarm := newAlarmMode()
+
+	mm.RegisterHandler(ModeConverter, converter)
+	mm.RegisterHandler(ModeStopwatch, stopwatch)
+	mm.RegisterHandler(ModeTimer, timer)
+	mm.RegisterHandler(ModeAlarm, alarm)
+
+	// Update mode view based on current mode
+	updateModeView := func() {
+		mode := mm.GetCurrentMode()
+		switch mode {
+		case ModeConverter:
+			modeView.SetBorderColor(tcell.ColorYellow)
+			modeView.SetTitle(" [ Converter ] ")
+			modeView.SetText(converter.Render())
+		case ModeStopwatch:
+			modeView.SetBorderColor(tcell.PaletteColor(14)) // Cyan-ish
+			modeView.SetTitle(" [ Stopwatch ] ")
+			modeView.SetText(stopwatch.Render())
+		case ModeTimer:
+			modeView.SetBorderColor(tcell.ColorOrange)
+			modeView.SetTitle(" [ Timer ] ")
+			modeView.SetText(timer.Render())
+		case ModeAlarm:
+			modeView.SetBorderColor(tcell.ColorRed)
+			modeView.SetTitle(" [ Alarm ] ")
+			modeView.SetText(alarm.Render())
+		default:
+			modeView.SetBorderColor(tcell.ColorYellow)
+			modeView.SetTitle(" [ Mode ] ")
+			modeView.SetText("[darkgray]Press C=Converter, S=Stopwatch, T=Timer, A=Alarm[white]")
+		}
+		footer.SetText(mm.GetHelpText())
+	}
 
 	// ── UPDATE FUNCTION ──
 	updateUI := func() {
 		now := time.Now()
 		utcNow := now.UTC()
 
+		// Header with mode indicator
+		modeName := ""
+		if mm.GetCurrentMode() != ModeNormal {
+			modeNames := map[Mode]string{
+				ModeConverter: "CONVERTER",
+				ModeStopwatch: "STOPWATCH",
+				ModeTimer:     "TIMER",
+				ModeAlarm:     "ALARM",
+			}
+			modeName = " | [" + modeNames[mm.GetCurrentMode()] + "]"
+		}
+
 		// Header
 		headerText := fmt.Sprintf(
-			"\n[::b][dodgerblue]   LOCALIZE [white]- World Time Dashboard[::-]   |   [yellow]UTC: %s[white]   |   [aqua]%s",
+			"\n[::b][dodgerblue]   LOCALIZE [white]- World Time Dashboard[::-]   |   [yellow]UTC: %s[white]   |   [aqua]%s%s",
 			utcNow.Format("15:04:05"),
 			utcNow.Format("Monday, 02 January 2006"),
+			modeName,
 		)
 		header.SetText(headerText)
 
@@ -410,20 +475,69 @@ func main() {
 		leftClockView.SetText(formatClockPanel(leftRegions))
 		rightClockView.SetText(formatClockPanel(rightRegions))
 
+		// Mode view - only update if in a mode
+		if mm.GetCurrentMode() != ModeNormal {
+			updateModeView()
+		}
+
 		// Footer
-		footer.SetText("[darkgray]Press [white::b]Q[darkgray::] or [white::b]Esc[darkgray::] to quit   |   Updates every second   |   [dodgerblue]localize")
+		footer.SetText(mm.GetHelpText())
 	}
 
 	// ── KEY BINDINGS ──
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
+			if mm.GetCurrentMode() != ModeNormal {
+				// In a mode, escape returns to normal
+				mm.SwitchTo(ModeNormal)
+				updateModeView()
+				app.QueueUpdateDraw(func() { updateUI() })
+				return nil
+			}
 			app.Stop()
 			return nil
 		case tcell.KeyRune:
-			if event.Rune() == 'q' || event.Rune() == 'Q' {
+			r := event.Rune()
+			if r == 'q' || r == 'Q' {
 				app.Stop()
 				return nil
+			}
+
+			// Mode switching keys (only from Normal mode)
+			if mm.GetCurrentMode() == ModeNormal {
+				switch r {
+				case 'c', 'C':
+					mm.SwitchTo(ModeConverter)
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				case 's', 'S':
+					mm.SwitchTo(ModeStopwatch)
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				case 't', 'T':
+					mm.SwitchTo(ModeTimer)
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				case 'a', 'A':
+					mm.SwitchTo(ModeAlarm)
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				}
+			}
+
+			// Delegate to mode handler
+			if mm.GetCurrentMode() != ModeNormal {
+				handled := mm.HandleKey(r)
+				if handled {
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				}
 			}
 		}
 		return event
