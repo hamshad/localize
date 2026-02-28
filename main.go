@@ -312,11 +312,23 @@ func getBrailleWorldMap() string {
 }
 
 func main() {
-	// Parse CLI flags
+	// Ensure config directory exists
+	if err := EnsureConfigDir(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Could not create config directory: %v\n", err)
+	}
+
+	// Load config (non-blocking - we'll use CLI flags if provided)
+	config, _ := LoadConfig()
+
+	// Parse CLI flags (CLI takes precedence over config)
 	flag.StringVar(&flagCities, "cities", "", "comma-separated list of city names (e.g., 'Tokyo,London,New York')")
 	flag.StringVar(&flagPreset, "preset", "", "use predefined city groups (business, family, americas, europe, asia)")
 	flag.BoolVar(&flagList, "list", false, "show all available cities and exit")
 	flag.Parse()
+
+	// Use CLI flags if provided, otherwise fall back to config
+	// (config values already loaded, but CLI takes precedence)
+	_ = config // Future: auto-save config if user makes changes
 
 	// Get configured cities based on flags
 	leftRegions, rightRegions, shouldRun := GetConfiguredCities()
