@@ -391,11 +391,15 @@ func main() {
 		SetTitleAlign(tview.AlignCenter).
 		SetBorderColor(tcell.ColorYellow)
 
+	// Navigation details view
+	navView := InitNavigation()
+
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 3, 0, false).
 		AddItem(mapView, 28, 0, false).
 		AddItem(clockRow, 0, 1, false).
-		AddItem(modeView, 12, 0, false).
+		AddItem(navView, 10, 0, false).
+		AddItem(modeView, 8, 0, false).
 		AddItem(footer, 1, 0, false)
 
 	// ── MODE SYSTEM ──
@@ -479,8 +483,8 @@ func main() {
 		mapView.SetText(coloredMap)
 
 		// Clocks
-		leftClockView.SetText(formatClockPanel(leftRegions))
-		rightClockView.SetText(formatClockPanel(rightRegions))
+		leftClockView.SetText(formatClockPanel(leftRegions, "left"))
+		rightClockView.SetText(formatClockPanel(rightRegions, "right"))
 
 		// Mode view - only update if in a mode
 		if mm.GetCurrentMode() != ModeNormal {
@@ -493,6 +497,42 @@ func main() {
 
 	// ── KEY BINDINGS ──
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Navigation keys work in Normal mode
+		if mm.GetCurrentMode() == ModeNormal {
+			switch event.Key() {
+			case tcell.KeyEscape:
+				if IsNavigationActive() {
+					Deselect()
+					updateNavigationView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				}
+				app.Stop()
+				return nil
+			case tcell.KeyUp:
+				NavigateUp(leftRegions, rightRegions)
+				updateNavigationView()
+				app.QueueUpdateDraw(func() { updateUI() })
+				return nil
+			case tcell.KeyDown:
+				NavigateDown(leftRegions, rightRegions)
+				updateNavigationView()
+				app.QueueUpdateDraw(func() { updateUI() })
+				return nil
+			case tcell.KeyTab:
+				SwitchPanel(leftRegions, rightRegions)
+				updateNavigationView()
+				app.QueueUpdateDraw(func() { updateUI() })
+				return nil
+			case tcell.KeyEnter:
+				if IsNavigationActive() {
+					ToggleDetails(leftRegions, rightRegions)
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				}
+			}
+		}
+
 		switch event.Key() {
 		case tcell.KeyEscape:
 			if mm.GetCurrentMode() != ModeNormal {
@@ -607,7 +647,8 @@ func colorizeBrailleMap(brailleMap string) string {
 
 // formatClockPanel builds a formatted clock display for a set of regions.
 // The first city in the list is used as the reference for relative time offsets.
-func formatClockPanel(regs []Region) string {
+// panelName is "left" or "right" to indicate which panel this is.
+func formatClockPanel(regs []Region, panelName string) string {
 	var b strings.Builder
 	b.WriteString("\n")
 
@@ -629,7 +670,7 @@ func formatClockPanel(regs []Region) string {
 	}
 	refDay := refTime.Truncate(24 * time.Hour)
 
-	for _, r := range regs {
+	for i, r := range regs {
 		loc, err := time.LoadLocation(r.Timezone)
 		if err != nil {
 			b.WriteString(fmt.Sprintf("  [red]%-13s  ERROR[-]\n", r.Name))
@@ -674,8 +715,20 @@ func formatClockPanel(regs []Region) string {
 			dayIndicator = fmt.Sprintf(" [yellow]%dd", dayDiff)
 		}
 
+		// Check if this city is selected
+		isSelected := IsNavigationActive() && navState.selectedPanel == panelName && navState.selectedIndex == i
+
+		// Selection indicator
+		var selectIndicator string
+		if isSelected {
+			selectIndicator = "[yellow]► [white]"
+		} else {
+			selectIndicator = "   "
+		}
+
 		b.WriteString(fmt.Sprintf(
-			"  [%s::b]%-13s[-::-] [white::b]%s[-::-]  [silver]%s  [darkgray]UTC%s  %s %s%s\n",
+			"%s[%s::b]%-13s[-::-] [white::b]%s[-::-]  [silver]%s  [darkgray]UTC%s  %s %s%s\n",
+			selectIndicator,
 			colorTag,
 			r.Name,
 			timeStr,
