@@ -1,12 +1,15 @@
-name: Release and Deploy
+name: Build and Release
 
 on:
   push:
     tags:
-      - 'v*' # Push events to matching v1.0, v20.15.10, etc.
+      - 'v*'
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  release:
+  test-and-lint:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     
     steps:
@@ -23,12 +26,52 @@ jobs:
         go mod download
         go mod verify
         
-    - name: Build for multiple platforms
+    - name: Run tests
       run: |
-        # Build for different platforms
+        go test -v ./...
+        
+    - name: Run linting
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v1.53.0
+        
+    - name: Build
+      run: go build -o localize main.go
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.25'
+        
+    - name: Install dependencies
+      run: |
+        go mod download
+        go mod verify
+        
+    - name: Build release binaries
+      run: |
         GOOS=darwin GOARCH=amd64 go build -o localize-darwin-amd64 main.go
+        GOOS=darwin GOARCH=arm64 go build -o localize-darwin-arm64 main.go
         GOOS=linux GOARCH=amd64 go build -o localize-linux-amd64 main.go
+        GOOS=linux GOARCH=arm64 go build -o localize-linux-arm64 main.go
         GOOS=windows GOARCH=amd64 go build -o localize-windows-amd64.exe main.go
+        
+    - name: Create checksums
+      run: |
+        sha256sum localize-darwin-amd64 | tee sha256sums.txt
+        sha256sum localize-darwin-arm64 | tee -a sha256sums.txt
+        sha256sum localize-linux-amd64 | tee -a sha256sums.txt
+        sha256sum localize-linux-arm64 | tee -a sha256sums.txt
+        sha256sum localize-windows-amd64.exe | tee -a sha256sums.txt
         
     - name: Create release
       id: create_release
@@ -36,12 +79,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
         
-    - name: Upload release artifacts
+    - name: Upload release assets
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -51,7 +94,17 @@ jobs:
         asset_name: localize-darwin-amd64
         asset_content_type: application/octet-stream
         
-    - name: Upload Linux artifact
+    - name: Upload macOS ARM64 asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: localize-darwin-arm64
+        asset_name: localize-darwin-arm64
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Linux AMD64 asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,7 +114,17 @@ jobs:
         asset_name: localize-linux-amd64
         asset_content_type: application/octet-stream
         
-    - name: Upload Windows artifact
+    - name: Upload Linux ARM64 asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: localize-linux-arm64
+        asset_name: localize-linux-arm64
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Windows asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,12 +133,6 @@ jobs:
         asset_path: localize-windows-amd64.exe
         asset_name: localize-windows-amd64.exe
         asset_content_type: application/octet-stream
-        
-    - name: Generate checksums
-      run: |
-        sha256sum localize-darwin-amd64 > sha256sums.txt
-        sha256sum localize-linux-amd64 >> sha256sums.txt
-        sha256sum localize-windows-amd64.exe >> sha256sums.txt
         
     - name: Upload checksums
       uses: actions/upload-release-asset@v1
@@ -86,41 +143,3 @@ jobs:
         asset_path: sha256sums.txt
         asset_name: sha256sums.txt
         asset_content_type: text/plain
-        
-    - name: Create release notes
-      run: |
-        # Generate release notes from commit history
-        echo "# Release ${{ github.ref }}" > RELEASE_NOTES.md
-        echo "" >> RELEASE_NOTES.md
-        echo "## Changes" >> RELEASE_NOTES.md
-        echo "" >> RELEASE_NOTES.md
-        git log --oneline --no-merges ${{ github.ref }}~1..${{ github.ref }} >> RELEASE_NOTES.md
-        
-    - name: Upload release notes
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: RELEASE_NOTES.md
-        asset_name: RELEASE_NOTES.md
-        asset_content_type: text/markdown
-        
-    - name: Log release completion
-      run: |
-        echo "Release ${{ github.ref }} created successfully"
-        echo "Release URL: ${{ steps.create_release.outputs.html_url }}"
-        echo "Release ID: ${{ steps.create_release.outputs.id }}"
-        echo "Release upload URL: ${{ steps.create_release.outputs.upload_url }}"
-        
-    - name: Archive release artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-artifacts
-        path: |
-          localize-darwin-amd64
-          localize-linux-amd64
-          localize-windows-amd64.exe
-          sha256sums.txt
-          RELEASE_NOTES.md
-        retention-days: 30
