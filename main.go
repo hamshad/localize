@@ -445,11 +445,13 @@ func main() {
 	stopwatch := newStopwatchMode()
 	timer := newTimerMode()
 	alarm := newAlarmMode()
+	meeting := NewMeetingMode(app)
 
 	mm.RegisterHandler(ModeConverter, converter)
 	mm.RegisterHandler(ModeStopwatch, stopwatch)
 	mm.RegisterHandler(ModeTimer, timer)
 	mm.RegisterHandler(ModeAlarm, alarm)
+	mm.RegisterHandler(ModeMeeting, meeting)
 
 	// Update mode view based on current mode
 	updateModeView := func() {
@@ -471,6 +473,10 @@ func main() {
 			modeView.SetBorderColor(tcell.ColorRed)
 			modeView.SetTitle(" [ Alarm ] ")
 			modeView.SetText(alarm.Render())
+		case ModeMeeting:
+			modeView.SetBorderColor(tcell.ColorDeepSkyBlue)
+			modeView.SetTitle(" [ Meeting Planner ] ")
+			modeView.SetText(meeting.Render())
 		default:
 			modeView.SetBorderColor(tcell.ColorYellow)
 			modeView.SetTitle(" [ Mode ] ")
@@ -568,6 +574,19 @@ func main() {
 			}
 		}
 
+		// Meeting mode handles its own navigation keys
+		if mm.GetCurrentMode() == ModeMeeting {
+			switch event.Key() {
+			case tcell.KeyUp, tcell.KeyDown, tcell.KeyEnter:
+				handled := mm.HandleSpecialKey(event.Key())
+				if handled {
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				}
+			}
+		}
+
 		switch event.Key() {
 		case tcell.KeyEscape:
 			if mm.GetCurrentMode() != ModeNormal {
@@ -606,6 +625,11 @@ func main() {
 					return nil
 				case 'a', 'A':
 					mm.SwitchTo(ModeAlarm)
+					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				case 'm', 'M':
+					mm.SwitchTo(ModeMeeting)
 					updateModeView()
 					app.QueueUpdateDraw(func() { updateUI() })
 					return nil

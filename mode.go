@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -16,6 +17,7 @@ const (
 	ModeTimer
 	ModeAlarm
 	ModeNavigation // Not used yet, for future map navigation
+	ModeMeeting
 )
 
 // modeNames provides human-readable names for each mode.
@@ -26,6 +28,7 @@ var modeNames = map[Mode]string{
 	ModeTimer:      "Timer",
 	ModeAlarm:      "Alarm",
 	ModeNavigation: "Navigation",
+	ModeMeeting:    "Meeting",
 }
 
 // ModeHandler defines the interface for mode-specific behavior.
@@ -106,6 +109,17 @@ func (mm *modeManager) Escape() bool {
 func (mm *modeManager) HandleKey(key rune) bool {
 	if handler, ok := mm.handlers[mm.currentMode]; ok {
 		return handler.HandleKey(key)
+	}
+	return false
+}
+
+// HandleSpecialKey delegates special key handling to the current mode's handler.
+func (mm *modeManager) HandleSpecialKey(key tcell.Key) bool {
+	if handler, ok := mm.handlers[mm.currentMode]; ok {
+		// Check if handler implements special key handling
+		if h, ok := handler.(*MeetingMode); ok {
+			return h.planner.HandleSpecialKey(key)
+		}
 	}
 	return false
 }
