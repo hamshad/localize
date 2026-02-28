@@ -4,10 +4,10 @@ Planning State
 
 ## Position
 
-**Current Phase:** 04
+**Current Phase:** 05
 **Current Plan:** Not started
-**Total Plans:** 1
-**Progress:** [██████████] 100%
+**Total Plans:** 3
+**Progress:** [░░░░░░░░░░] 0%
 
 ## Decisions
 
@@ -18,6 +18,12 @@ Planning State
 - [Phase 02-utilities]: Alarms persist to ~/.localize/alarms.json
 - [Phase 03-visual]: First city in each panel as reference for relative time offset
 - [Phase 04-expansion]: Expanded to 37 cities across 6 categories
+- [Phase 05-ui-redesign]: Fullscreen map as ricing showpiece — no panels, overlay-only features
+- [Phase 05-ui-redesign]: Higher-res bitmap (480x192) + dynamic scaling to terminal size
+- [Phase 05-ui-redesign]: City markers show 3-letter abbr + 12hr time on map, pulsing selection
+- [Phase 05-ui-redesign]: Menu via M/Space/Enter, features in centered modal overlays
+- [Phase 05-ui-redesign]: ASCII analog clock in feature overlays
+- [Phase 05-ui-redesign]: Minimal 1-row status bar, [=] menu indicator, no footer/header
 
 ## Blockers
 
@@ -25,7 +31,9 @@ None.
 
 ## Pending
 
-None.
+- Phase 5 Plan 1: High-res map bitmap + dynamic scaling engine
+- Phase 5 Plan 2: Fullscreen layout, city markers, status bar
+- Phase 5 Plan 3: Menu overlay system, feature modals, ASCII clock
 
 ## Completed
 

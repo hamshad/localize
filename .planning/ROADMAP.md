@@ -23,6 +23,7 @@
 | 02 | 1/1 | Complete    | 2026-02-28 | 2026-02-28 |
 | 03 | 1/1 | Complete    | 2026-02-28 | 2026-02-28 |
 | 04 | 1/1 | Complete    | 2026-02-28 | 2026-02-28 |
+| 05 | Full-Screen Map UI Redesign | 3 plans | Planned | - |
 
 ---
 
@@ -53,6 +54,24 @@
 
 9. **F2:** Meeting Time Planner — Highlight overlapping business hours across selected timezones ✓
 10. **F8:** Add More Cities — Expand city list with additional business hubs ✓
+
+### Phase 5: Full-Screen Map UI Redesign
+**Requirements:** [UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08]
+**Goal:** Transform the app into a fullscreen world map ricing showpiece with overlay-based feature access
+
+11. **UI-01:** High-Resolution Map — Create detailed 480x192 bitmap with better coastlines, islands, peninsulas
+12. **UI-02:** Dynamic Map Scaling — Braille map scales to fill any terminal size
+13. **UI-03:** Fullscreen Layout — Remove all panels, map fills entire terminal
+14. **UI-04:** City Time Markers — Show 3-letter city codes with live 12hr time on the map
+15. **UI-05:** Pulsing City Selection — Selected city marker blinks/pulses, minimal 1-row status bar with 12hr format
+16. **UI-06:** Menu Overlay System — M/Space/Enter opens centered menu listing all features, [=] indicator in corner
+17. **UI-07:** Feature Modal Boxes — Each feature opens as centered popup over the map
+18. **UI-08:** ASCII Analog Clock — Rendered inside relevant feature overlays for visual richness
+
+Plans:
+- [ ] 05-01-PLAN.md — High-res map bitmap + dynamic scaling engine
+- [ ] 05-02-PLAN.md — Fullscreen layout, city markers with time, status bar
+- [ ] 05-03-PLAN.md — Menu overlay system, feature modals, ASCII clock
 
 ---
 
