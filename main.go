@@ -606,9 +606,28 @@ func colorizeBrailleMap(brailleMap string) string {
 }
 
 // formatClockPanel builds a formatted clock display for a set of regions.
+// The first city in the list is used as the reference for relative time offsets.
 func formatClockPanel(regs []Region) string {
 	var b strings.Builder
 	b.WriteString("\n")
+
+	// Determine the reference timezone (first city in list)
+	var refLoc *time.Location
+	if len(regs) > 0 {
+		loc, err := time.LoadLocation(regs[0].Timezone)
+		if err == nil {
+			refLoc = loc
+		}
+	}
+
+	// Get reference time
+	var refTime time.Time
+	if refLoc != nil {
+		refTime = time.Now().In(refLoc)
+	} else {
+		refTime = time.Now().UTC()
+	}
+	refDay := refTime.Truncate(24 * time.Hour)
 
 	for _, r := range regs {
 		loc, err := time.LoadLocation(r.Timezone)
@@ -624,14 +643,47 @@ func formatClockPanel(regs []Region) string {
 		dayPhase := getDayPhase(now)
 		colorTag := colorToTag(r.Color)
 
+		// Calculate relative offset from reference
+		hourOffset := now.Sub(refTime).Hours()
+		offsetHours := int(hourOffset + 0.5) // Round to nearest hour
+
+		// Format offset string
+		var offsetDisplay string
+		if offsetHours == 0 {
+			offsetDisplay = "[green]+0h"
+		} else if offsetHours > 0 {
+			offsetDisplay = fmt.Sprintf("[green]+%dh", offsetHours)
+		} else {
+			offsetDisplay = fmt.Sprintf("[red]%dh", offsetHours)
+		}
+
+		// Determine if different day (check day difference)
+		nowDay := now.Truncate(24 * time.Hour)
+		dayDiff := int(nowDay.Sub(refDay).Hours() / 24)
+
+		var dayIndicator string
+		if dayDiff == 0 {
+			dayIndicator = "" // Same day, no indicator
+		} else if dayDiff == 1 {
+			dayIndicator = " [yellow]+1d"
+		} else if dayDiff == -1 {
+			dayIndicator = " [yellow]-1d"
+		} else if dayDiff > 1 {
+			dayIndicator = fmt.Sprintf(" [yellow]+%dd", dayDiff)
+		} else {
+			dayIndicator = fmt.Sprintf(" [yellow]%dd", dayDiff)
+		}
+
 		b.WriteString(fmt.Sprintf(
-			"  [%s::b]%-13s[-::-] [white::b]%s[-::-]  [silver]%s  [darkgray]UTC%s  %s\n",
+			"  [%s::b]%-13s[-::-] [white::b]%s[-::-]  [silver]%s  [darkgray]UTC%s  %s %s%s\n",
 			colorTag,
 			r.Name,
 			timeStr,
 			dateStr,
 			offsetStr,
 			dayPhase,
+			offsetDisplay,
+			dayIndicator,
 		))
 	}
 
