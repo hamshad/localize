@@ -1,4 +1,3 @@
-Generating 480x192 bitmap from 240x96...
 package main
 
 // WorldBitmap is a high-resolution equirectangular world map bitmap.
