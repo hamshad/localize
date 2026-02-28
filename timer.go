@@ -69,8 +69,9 @@ func (t *timerMode) HandleKey(key rune) bool {
 		if t.state.inputMode {
 			if len(t.state.inputDur) < 8 { // Max HH:MM:SS
 				t.state.inputDur += string(key)
-				// Auto-add colon after 2 or 4 digits
-				if len(t.state.inputDur) == 2 || len(t.state.inputDur) == 4 {
+				// Auto-add colon after 2nd and 5th characters (HH: and HH:MM:)
+				l := len(t.state.inputDur)
+				if l == 2 || l == 5 {
 					t.state.inputDur += ":"
 				}
 			}
@@ -86,8 +87,8 @@ func (t *timerMode) HandleKey(key rune) bool {
 	case 127: // Backspace
 		if t.state.inputMode && len(t.state.inputDur) > 0 {
 			t.state.inputDur = t.state.inputDur[:len(t.state.inputDur)-1]
-			// Auto-remove colon if backspacing over it
-			if len(t.state.inputDur) > 0 && len(t.state.inputDur)%3 == 2 {
+			// Auto-remove trailing colon
+			if len(t.state.inputDur) > 0 && t.state.inputDur[len(t.state.inputDur)-1] == ':' {
 				t.state.inputDur = t.state.inputDur[:len(t.state.inputDur)-1]
 			}
 		}
@@ -97,20 +98,45 @@ func (t *timerMode) HandleKey(key rune) bool {
 }
 
 // parseDuration tries to parse the input duration string.
+// Accepts formats: "MM:SS" or "HH:MM:SS"
 func (t *timerMode) parseDuration() error {
 	if t.state.inputDur == "" {
 		return fmt.Errorf("empty input")
 	}
 
-	// Try parsing as HH:MM:SS
-	d, err := time.ParseDuration(t.state.inputDur + "s")
-	if err != nil {
-		// Try parsing as MM:SS
-		d, err = time.ParseDuration("0m" + t.state.inputDur + "s")
+	parts := strings.Split(t.state.inputDur, ":")
+	var hours, minutes, seconds int
+
+	switch len(parts) {
+	case 2:
+		// MM:SS
+		_, err := fmt.Sscanf(parts[0], "%d", &minutes)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid minutes: %w", err)
 		}
+		_, err = fmt.Sscanf(parts[1], "%d", &seconds)
+		if err != nil {
+			return fmt.Errorf("invalid seconds: %w", err)
+		}
+	case 3:
+		// HH:MM:SS
+		_, err := fmt.Sscanf(parts[0], "%d", &hours)
+		if err != nil {
+			return fmt.Errorf("invalid hours: %w", err)
+		}
+		_, err = fmt.Sscanf(parts[1], "%d", &minutes)
+		if err != nil {
+			return fmt.Errorf("invalid minutes: %w", err)
+		}
+		_, err = fmt.Sscanf(parts[2], "%d", &seconds)
+		if err != nil {
+			return fmt.Errorf("invalid seconds: %w", err)
+		}
+	default:
+		return fmt.Errorf("invalid format (use MM:SS or HH:MM:SS)")
 	}
+
+	d := time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute + time.Duration(seconds)*time.Second
 
 	if d <= 0 {
 		return fmt.Errorf("duration must be positive")

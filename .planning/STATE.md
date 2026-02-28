@@ -5,7 +5,7 @@ Planning State
 ## Position
 
 **Current Phase:** 04
-**Current Plan:** 01
+**Current Plan:** Not started
 **Total Plans:** 1
 **Progress:** [██████████] 100%
 

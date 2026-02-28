@@ -20,26 +20,31 @@ func IsDayNightOverlayEnabled() bool {
 }
 
 // getDayPhaseForLocation determines the day phase for a specific longitude.
-// Returns: "day", "night", "dawn", "dusk"
+// Returns: "day", "night", "dawn", "dusk", "morning", "evening"
 func getDayPhaseForLocation(t time.Time, longitude float64) string {
-	// Calculate local hour at this longitude
-	// Each 15 degrees = 1 hour time difference
-	utcHour := t.UTC().Hour()
-	localHour := (utcHour + int(longitude/15)) % 24
-	if localHour < 0 {
+	// Calculate local solar hour at this longitude
+	// Each 15 degrees = 1 hour time difference from UTC
+	utcHour := float64(t.UTC().Hour()) + float64(t.UTC().Minute())/60.0
+	localHour := utcHour + longitude/15.0
+	// Normalize to 0-24 range
+	for localHour < 0 {
 		localHour += 24
 	}
+	for localHour >= 24 {
+		localHour -= 24
+	}
+	intHour := int(localHour)
 
 	switch {
-	case localHour >= 6 && localHour < 7:
+	case intHour >= 6 && intHour < 7:
 		return "dawn"
-	case localHour >= 7 && localHour < 8:
+	case intHour >= 7 && intHour < 8:
 		return "morning"
-	case localHour >= 8 && localHour < 17:
+	case intHour >= 8 && intHour < 17:
 		return "day"
-	case localHour >= 17 && localHour < 18:
+	case intHour >= 17 && intHour < 18:
 		return "dusk"
-	case localHour >= 18 && localHour < 20:
+	case intHour >= 18 && intHour < 20:
 		return "evening"
 	default:
 		return "night"
@@ -103,7 +108,7 @@ func colorizeBrailleMapWithDayNight(brailleMap string) string {
 	}
 
 	// Apply day/night coloring
-	// Each braille column represents about 3 degrees of longitude (180/60 = 3)
+	// Each braille column represents about 3 degrees of longitude (360/120 = 3)
 	brailleCols := 120 // 240 / 2
 	degreesPerCol := 360.0 / float64(brailleCols)
 
@@ -112,57 +117,43 @@ func colorizeBrailleMapWithDayNight(brailleMap string) string {
 		runes := []rune(line)
 
 		var newLine strings.Builder
+		brailleCol := 0 // Track the braille column for longitude calc
 		col := 0
 		for col < len(runes) {
-			// Calculate longitude for this braille column position
-			longitude := -180 + float64(col*2)*degreesPerCol
-			phase := getDayPhaseForLocation(now, longitude)
-			color := getColorForDayPhase(phase)
+			ch := runes[col]
 
-			// Check if this is a color tag we inserted
-			if col < len(runes)-3 && string(runes[col:col+3]) == "[-]" {
-				// We're at end of a color tag, continue
-				newLine.WriteRune(runes[col])
-				col++
-				continue
-			}
-
-			// Check if we're inside a color tag we added (like city markers)
-			inColorTag := false
-			tagEnd := -1
-			for tagLen := 5; tagLen <= 20 && col+tagLen <= len(runes); tagLen++ {
-				testStr := string(runes[col : col+tagLen])
-				if strings.HasPrefix(testStr, "[") && strings.Contains(testStr, "]") {
-					inColorTag = true
-					tagEnd = col + strings.Index(testStr, "[-]")
-					if tagEnd >= col {
-						tagEnd += 3 // include the [-] part
-						break
-					}
+			// If we hit a '[', this is a tview color/style tag - pass it through verbatim
+			if ch == '[' {
+				// Find the matching ']'
+				end := col + 1
+				for end < len(runes) && runes[end] != ']' {
+					end++
 				}
-			}
-
-			if inColorTag && tagEnd > col {
-				newLine.WriteString(string(runes[col:tagEnd]))
-				col = tagEnd
-				continue
-			}
-
-			// Regular character - apply day/night color
-			// Check if it's a braille character (unicode range)
-			if col < len(runes) {
-				ch := runes[col]
-				if ch >= 0x2800 && ch <= 0x28FF {
-					newLine.WriteString(color)
-					newLine.WriteRune(ch)
-					newLine.WriteString("[-]")
-					col++
+				if end < len(runes) {
+					end++ // include the ']'
+					newLine.WriteString(string(runes[col:end]))
+					col = end
 					continue
 				}
 			}
 
-			// Regular character
-			newLine.WriteRune(runes[col])
+			// Braille character - apply day/night color
+			if ch >= 0x2800 && ch <= 0x28FF {
+				longitude := -180.0 + float64(brailleCol)*degreesPerCol
+				phase := getDayPhaseForLocation(now, longitude)
+				color := getColorForDayPhase(phase)
+				newLine.WriteString("[")
+				newLine.WriteString(color)
+				newLine.WriteString("]")
+				newLine.WriteRune(ch)
+				newLine.WriteString("[-]")
+				brailleCol++
+				col++
+				continue
+			}
+
+			// Any other character (like city label letters) - pass through
+			newLine.WriteRune(ch)
 			col++
 		}
 		lines[row] = newLine.String()

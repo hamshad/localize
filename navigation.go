@@ -187,19 +187,19 @@ func updateNavigationView() {
 	// Day of week
 	dayOfWeek := now.Weekday().String()
 
-	// Check DST (simplified - check if timezone has DST offset different from standard)
-	// This is a simplified check - real DST detection would need historical data
+	// Check DST (simplified - compare January and July offsets)
 	isDST := false
 	_, janOffset := time.Date(2024, 1, 15, 12, 0, 0, 0, loc).Zone()
 	_, julOffset := time.Date(2024, 7, 15, 12, 0, 0, 0, loc).Zone()
 	if janOffset != julOffset {
-		// DST exists in this timezone, check if we're in it
+		// DST exists in this timezone
 		_, currentOffset := now.Zone()
-		if currentOffset == julOffset {
-			isDST = false // Standard time (winter)
-		} else {
-			isDST = true // DST (summer)
+		// The larger offset is typically DST
+		maxOffset := janOffset
+		if julOffset > maxOffset {
+			maxOffset = julOffset
 		}
+		isDST = currentOffset == maxOffset
 	}
 
 	// Date formatting

@@ -65,9 +65,9 @@ func (c *converterMode) HandleKey(key rune) bool {
 	case 127: // Backspace
 		if c.inputMode && len(c.inputTime) > 0 {
 			c.inputTime = c.inputTime[:len(c.inputTime)-1]
-			// Remove colon if backspacing over it
-			if len(c.inputTime) == 2 && c.inputTime[1] == ':' {
-				c.inputTime = c.inputTime[:1]
+			// Remove trailing colon if backspacing exposed one
+			if len(c.inputTime) > 0 && c.inputTime[len(c.inputTime)-1] == ':' {
+				c.inputTime = c.inputTime[:len(c.inputTime)-1]
 			}
 		}
 		return true

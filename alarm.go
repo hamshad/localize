@@ -139,8 +139,9 @@ func (am *alarmMode) HandleKey(key rune) bool {
 	case 127: // Backspace
 		if am.inputMode == "add" && am.inputStep == 1 && len(am.inputTime) > 0 {
 			am.inputTime = am.inputTime[:len(am.inputTime)-1]
-			if len(am.inputTime) == 2 && am.inputTime[1] == ':' {
-				am.inputTime = am.inputTime[:1]
+			// Remove trailing colon if backspacing exposed one
+			if len(am.inputTime) > 0 && am.inputTime[len(am.inputTime)-1] == ':' {
+				am.inputTime = am.inputTime[:len(am.inputTime)-1]
 			}
 		}
 		return true

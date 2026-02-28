@@ -366,10 +366,13 @@ func main() {
 	_ = config // Future: auto-save config if user makes changes
 
 	// Get configured cities based on flags
-	leftRegions, rightRegions, shouldRun := GetConfiguredCities()
+	// Update the package-level variables so all functions see the filtered lists
+	configLeft, configRight, shouldRun := GetConfiguredCities()
 	if !shouldRun {
 		return
 	}
+	leftRegions = configLeft
+	rightRegions = configRight
 
 	app := tview.NewApplication()
 
@@ -498,6 +501,7 @@ func main() {
 				ModeStopwatch: "STOPWATCH",
 				ModeTimer:     "TIMER",
 				ModeAlarm:     "ALARM",
+				ModeMeeting:   "MEETING",
 			}
 			modeName = " | [" + modeNames[mm.GetCurrentMode()] + "]"
 		}

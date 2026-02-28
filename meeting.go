@@ -89,6 +89,7 @@ func (mp *MeetingPlanner) SetBusinessHours(start, end int) {
 }
 
 // GetBestMeetingTimes calculates the best meeting times across all selected cities.
+// Hours are in UTC. For each UTC hour, we check what local time it would be in each city.
 func (mp *MeetingPlanner) GetBestMeetingTimes() []struct {
 	Hour         int
 	AllAvailable bool
@@ -102,15 +103,16 @@ func (mp *MeetingPlanner) GetBestMeetingTimes() []struct {
 
 	now := time.Now()
 
-	for hour := 0; hour < 24; hour++ {
+	for utcHour := 0; utcHour < 24; utcHour++ {
 		count := 0
 		for _, city := range mp.selectedCities {
 			loc, err := time.LoadLocation(city.Timezone)
 			if err != nil {
 				continue
 			}
-			// Create a time at the specified hour in the city's timezone
-			cityTime := time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, loc)
+			// Create a time at the specified UTC hour, then convert to city's timezone
+			utcTime := time.Date(now.Year(), now.Month(), now.Day(), utcHour, 0, 0, 0, time.UTC)
+			cityTime := utcTime.In(loc)
 			hourInCity := cityTime.Hour()
 			if hourInCity >= mp.businessStart && hourInCity < mp.businessEnd {
 				count++
@@ -121,7 +123,7 @@ func (mp *MeetingPlanner) GetBestMeetingTimes() []struct {
 			AllAvailable bool
 			Count        int
 		}{
-			Hour:         hour,
+			Hour:         utcHour,
 			AllAvailable: count == len(mp.selectedCities) && len(mp.selectedCities) > 0,
 			Count:        count,
 		})
@@ -246,14 +248,19 @@ func (mp *MeetingPlanner) RenderTimeline() string {
 		}
 
 		now := time.Now()
-		cityTime := now.In(loc)
-		currentHour := cityTime.Hour()
 
-		b.WriteString(fmt.Sprintf("[%s]% -12s[white] ", city.Name[:min(12, len(city.Name))], city.Name))
+		colorTag := colorToTag(city.Color)
+		displayName := city.Name
+		if len(displayName) > 12 {
+			displayName = displayName[:12]
+		}
+		b.WriteString(fmt.Sprintf("[%s]%-12s[white] ", colorTag, displayName))
 
 		for h := 0; h < 24; h++ {
-			// Show what hour it would be in this city
-			displayHour := (currentHour - now.In(loc).Hour() + h + 24) % 24
+			// Calculate what local hour it would be in this city when UTC is h:00
+			utcTime := time.Date(now.Year(), now.Month(), now.Day(), h, 0, 0, 0, time.UTC)
+			cityTime := utcTime.In(loc)
+			displayHour := cityTime.Hour()
 
 			if displayHour >= mp.businessStart && displayHour < mp.businessEnd {
 				b.WriteString("[green]▀[white]")
