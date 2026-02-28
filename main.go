@@ -20,35 +20,31 @@ var (
 
 // Preset city groups
 var presets = map[string][]string{
-	"business": {"New York", "London", "Tokyo", "Singapore"},
-	"family":   {"Los Angeles", "London", "Paris", "Sydney"},
-	"americas": {"Honolulu", "Anchorage", "Los Angeles", "New York", "Sao Paulo"},
-	"europe":   {"London", "Paris", "Moscow"},
-	"asia":     {"Dubai", "Mumbai", "Singapore", "Shanghai", "Tokyo"},
+	"business":   {"New York", "London", "Tokyo", "Singapore", "Hong Kong", "Dubai"},
+	"family":     {"Los Angeles", "London", "Paris", "Sydney"},
+	"americas":   {"Honolulu", "Anchorage", "Vancouver", "San Francisco", "Denver", "Chicago", "Toronto", "Miami", "New York", "Mexico City", "Sao Paulo", "Buenos Aires"},
+	"europe":     {"London", "Lisbon", "Amsterdam", "Paris", "Berlin", "Stockholm", "Warsaw", "Athens", "Moscow", "Istanbul"},
+	"middleeast": {"Dubai", "Tel Aviv", "Riyadh"},
+	"africa":     {"Cairo", "Lagos", "Johannesburg", "Nairobi"},
+	"asia":       {"Karachi", "Mumbai", "Bangkok", "Jakarta", "Singapore", "Manila", "Hong Kong", "Shanghai", "Seoul", "Tokyo"},
+	"oceania":    {"Auckland", "Sydney"},
+	"all":        {},
 }
 
 // GetConfiguredCities returns the list of cities to display based on CLI flags and presets.
 func GetConfiguredCities() ([]Region, []Region, bool) {
 	// Check -list flag first
 	if flagList {
-		fmt.Println("Available cities:")
-		fmt.Println("\nAmericas & Europe:")
-		for _, r := range leftRegions {
-			fmt.Printf("  - %s (%s)\n", r.Name, r.Timezone)
-		}
-		fmt.Println("\nAsia, Africa & Oceania:")
-		for _, r := range rightRegions {
-			fmt.Printf("  - %s (%s)\n", r.Name, r.Timezone)
-		}
-		fmt.Println("\nAvailable presets:")
-		for name := range presets {
-			fmt.Printf("  - %s\n", name)
-		}
+		PrintCitiesList()
 		return nil, nil, false
 	}
 
 	// Check preset flag
 	if flagPreset != "" {
+		if flagPreset == "all" {
+			// Show all cities
+			return convertAllCitiesToRegions()
+		}
 		if cities, ok := presets[flagPreset]; ok {
 			return filterRegionsByNames(cities)
 		} else {
@@ -71,10 +67,49 @@ func GetConfiguredCities() ([]Region, []Region, bool) {
 	return leftRegions, rightRegions, true
 }
 
+// convertAllCitiesToRegions converts all cities from AllCities to Region format for display.
+func convertAllCitiesToRegions() ([]Region, []Region, bool) {
+	var left, right []Region
+
+	// Split cities into left (Americas, Europe) and right (MiddleEast, Africa, Asia, Oceania)
+	for _, city := range AllCities {
+		region := Region{
+			Name:     city.Name,
+			Timezone: city.Timezone,
+			Color:    city.Color,
+		}
+
+		if city.Category == "Americas" || city.Category == "Europe" {
+			left = append(left, region)
+		} else {
+			right = append(right, region)
+		}
+	}
+
+	return left, right, true
+}
+
 // filterRegionsByNames filters the left and right region lists to only include the specified cities.
 func filterRegionsByNames(cityNames []string) ([]Region, []Region, bool) {
 	var left, right []Region
 	for _, name := range cityNames {
+		// Check if it's an alias first
+		if city := GetCityByName(name); city != nil {
+			region := Region{
+				Name:     city.Name,
+				Timezone: city.Timezone,
+				Color:    city.Color,
+			}
+			// Put in appropriate panel based on category
+			if city.Category == "Americas" || city.Category == "Europe" {
+				left = append(left, region)
+			} else {
+				right = append(right, region)
+			}
+			continue
+		}
+
+		// Fall back to original leftRegions search
 		found := false
 		for _, r := range leftRegions {
 			if strings.EqualFold(r.Name, name) {
