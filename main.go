@@ -458,17 +458,24 @@ func main() {
 		}
 
 		// Header
+		dayNightStatus := GetDayNightStatus()
 		headerText := fmt.Sprintf(
-			"\n[::b][dodgerblue]   LOCALIZE [white]- World Time Dashboard[::-]   |   [yellow]UTC: %s[white]   |   [aqua]%s%s",
+			"\n[::b][dodgerblue]   LOCALIZE [white]- World Time Dashboard[::-]   |   [yellow]UTC: %s[white]   |   [aqua]%s%s   |   %s",
 			utcNow.Format("15:04:05"),
 			utcNow.Format("Monday, 02 January 2006"),
 			modeName,
+			dayNightStatus,
 		)
 		header.SetText(headerText)
 
 		// Braille Map with overlaid city markers
 		brailleMap := getBrailleWorldMap()
-		coloredMap := colorizeBrailleMap(brailleMap)
+		var coloredMap string
+		if IsDayNightOverlayEnabled() {
+			coloredMap = colorizeBrailleMapWithDayNight(brailleMap)
+		} else {
+			coloredMap = colorizeBrailleMap(brailleMap)
+		}
 		mapView.SetText(coloredMap)
 
 		// Clocks
@@ -525,6 +532,10 @@ func main() {
 				case 'a', 'A':
 					mm.SwitchTo(ModeAlarm)
 					updateModeView()
+					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				case 'd', 'D':
+					ToggleDayNightOverlay()
 					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				}

@@ -144,5 +144,5 @@ func (mm *modeManager) updateModeIndicator() {
 
 // getNormalModeHelp returns the help text for Normal mode.
 func getNormalModeHelp() string {
-	return "[darkgray]Keys:[white] C=Converter  S=Stopwatch  T=Timer  A=Alarm  Q/Esc=Quit"
+	return "[darkgray]Keys:[white] C=Converter  S=Stopwatch  T=Timer  A=Alarm  D=Day/Night  Q/Esc=Quit"
 }
