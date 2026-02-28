@@ -531,16 +531,20 @@ func main() {
 		leftClockView.SetText(formatClockPanel(leftRegions, "left"))
 		rightClockView.SetText(formatClockPanel(rightRegions, "right"))
 
-		// Mode view - only update if in a mode
-		if mm.GetCurrentMode() != ModeNormal {
-			updateModeView()
-		}
+		// Mode view - always update to keep content fresh
+		updateModeView()
 
 		// Footer
 		footer.SetText(mm.GetHelpText())
 	}
 
 	// ── KEY BINDINGS ──
+	// IMPORTANT: Do NOT call app.QueueUpdateDraw() from within SetInputCapture.
+	// tview v0.42.0's QueueUpdateDraw blocks waiting for the queued function to
+	// execute, but the event loop can't process the queue while it's inside
+	// InputCapture — causing a deadlock/freeze. Instead, just modify state and
+	// return nil (tview auto-redraws after consuming events), or use
+	// go app.QueueUpdateDraw() if an async redraw is truly needed.
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Navigation keys work in Normal mode
 		if mm.GetCurrentMode() == ModeNormal {
@@ -549,7 +553,7 @@ func main() {
 				if IsNavigationActive() {
 					Deselect()
 					updateNavigationView()
-					app.QueueUpdateDraw(func() { updateUI() })
+					updateUI()
 					return nil
 				}
 				app.Stop()
@@ -557,22 +561,22 @@ func main() {
 			case tcell.KeyUp:
 				NavigateUp(leftRegions, rightRegions)
 				updateNavigationView()
-				app.QueueUpdateDraw(func() { updateUI() })
+				updateUI()
 				return nil
 			case tcell.KeyDown:
 				NavigateDown(leftRegions, rightRegions)
 				updateNavigationView()
-				app.QueueUpdateDraw(func() { updateUI() })
+				updateUI()
 				return nil
 			case tcell.KeyTab:
 				SwitchPanel(leftRegions, rightRegions)
 				updateNavigationView()
-				app.QueueUpdateDraw(func() { updateUI() })
+				updateUI()
 				return nil
 			case tcell.KeyEnter:
 				if IsNavigationActive() {
 					ToggleDetails(leftRegions, rightRegions)
-					app.QueueUpdateDraw(func() { updateUI() })
+					updateUI()
 					return nil
 				}
 			}
@@ -585,7 +589,24 @@ func main() {
 				handled := mm.HandleSpecialKey(event.Key())
 				if handled {
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
+					return nil
+				}
+			}
+		}
+
+		// Delegate Enter and Backspace to mode handlers (these are not rune events)
+		if mm.GetCurrentMode() != ModeNormal {
+			switch event.Key() {
+			case tcell.KeyEnter:
+				handled := mm.HandleSpecialKeyEvent(tcell.KeyEnter)
+				if handled {
+					updateModeView()
+					return nil
+				}
+			case tcell.KeyBackspace, tcell.KeyBackspace2:
+				handled := mm.HandleSpecialKeyEvent(tcell.KeyBackspace2)
+				if handled {
+					updateModeView()
 					return nil
 				}
 			}
@@ -597,16 +618,20 @@ func main() {
 				// In a mode, escape returns to normal
 				mm.SwitchTo(ModeNormal)
 				updateModeView()
-				app.QueueUpdateDraw(func() { updateUI() })
 				return nil
 			}
 			app.Stop()
 			return nil
 		case tcell.KeyRune:
 			r := event.Rune()
+
+			// q/Q only quits from Normal mode
 			if r == 'q' || r == 'Q' {
-				app.Stop()
-				return nil
+				if mm.GetCurrentMode() == ModeNormal {
+					app.Stop()
+					return nil
+				}
+				// In a mode, delegate q to the mode handler (falls through below)
 			}
 
 			// Mode switching keys (only from Normal mode)
@@ -615,31 +640,26 @@ func main() {
 				case 'c', 'C':
 					mm.SwitchTo(ModeConverter)
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				case 's', 'S':
 					mm.SwitchTo(ModeStopwatch)
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				case 't', 'T':
 					mm.SwitchTo(ModeTimer)
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				case 'a', 'A':
 					mm.SwitchTo(ModeAlarm)
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				case 'm', 'M':
 					mm.SwitchTo(ModeMeeting)
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				case 'd', 'D':
 					ToggleDayNightOverlay()
-					app.QueueUpdateDraw(func() { updateUI() })
+					updateUI()
 					return nil
 				}
 			}
@@ -649,7 +669,6 @@ func main() {
 				handled := mm.HandleKey(r)
 				if handled {
 					updateModeView()
-					app.QueueUpdateDraw(func() { updateUI() })
 					return nil
 				}
 			}
@@ -665,6 +684,12 @@ func main() {
 		app.QueueUpdateDraw(func() { updateUI() })
 
 		for range ticker.C {
+			// Check alarms each tick
+			triggered := alarm.CheckAlarms()
+			if len(triggered) > 0 {
+				// Terminal bell for alarm notification
+				fmt.Print("\a")
+			}
 			app.QueueUpdateDraw(func() { updateUI() })
 		}
 	}()

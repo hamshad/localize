@@ -35,6 +35,7 @@ var modeNames = map[Mode]string{
 type ModeHandler interface {
 	GetMode() Mode
 	HandleKey(key rune) bool
+	HandleSpecialKeyEvent(key tcell.Key) bool // Handle non-rune keys (Enter, Backspace, etc.)
 	Render() string
 	GetHelpText() string
 }
@@ -109,6 +110,15 @@ func (mm *modeManager) Escape() bool {
 func (mm *modeManager) HandleKey(key rune) bool {
 	if handler, ok := mm.handlers[mm.currentMode]; ok {
 		return handler.HandleKey(key)
+	}
+	return false
+}
+
+// HandleSpecialKeyEvent delegates non-rune key events (Enter, Backspace, etc.)
+// to the current mode's handler.
+func (mm *modeManager) HandleSpecialKeyEvent(key tcell.Key) bool {
+	if handler, ok := mm.handlers[mm.currentMode]; ok {
+		return handler.HandleSpecialKeyEvent(key)
 	}
 	return false
 }

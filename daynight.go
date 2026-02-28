@@ -153,7 +153,9 @@ func colorizeBrailleMapWithDayNight(brailleMap string) string {
 			}
 
 			// Any other character (like city label letters) - pass through
+			// These replace braille chars, so they occupy a braille column position
 			newLine.WriteRune(ch)
+			brailleCol++
 			col++
 		}
 		lines[row] = newLine.String()

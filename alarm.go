@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 // Alarm represents a single alarm.
@@ -101,11 +103,6 @@ func (am *alarmMode) HandleKey(key rune) bool {
 			}
 		}
 		return true
-	case 13: // Enter
-		if am.inputMode == "add" {
-			am.handleEnterKey()
-		}
-		return true
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		// Handle digit input
 		if am.inputMode == "add" && am.inputStep == 2 {
@@ -136,15 +133,27 @@ func (am *alarmMode) HandleKey(key rune) bool {
 			am.inputTime += ":"
 		}
 		return true
-	case 127: // Backspace
+	}
+	return false
+}
+
+// HandleSpecialKeyEvent handles non-rune key events (Enter, Backspace, etc.).
+func (am *alarmMode) HandleSpecialKeyEvent(key tcell.Key) bool {
+	switch key {
+	case tcell.KeyEnter:
+		if am.inputMode == "add" {
+			am.handleEnterKey()
+			return true
+		}
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		if am.inputMode == "add" && am.inputStep == 1 && len(am.inputTime) > 0 {
 			am.inputTime = am.inputTime[:len(am.inputTime)-1]
 			// Remove trailing colon if backspacing exposed one
 			if len(am.inputTime) > 0 && am.inputTime[len(am.inputTime)-1] == ':' {
 				am.inputTime = am.inputTime[:len(am.inputTime)-1]
 			}
+			return true
 		}
-		return true
 	}
 	return false
 }

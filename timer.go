@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 // timerState holds the current timer state.
@@ -84,15 +86,22 @@ func (t *timerMode) HandleKey(key rune) bool {
 			}
 		}
 		return true
-	case 127: // Backspace
+	}
+	return false
+}
+
+// HandleSpecialKeyEvent handles non-rune key events (Enter, Backspace, etc.).
+func (t *timerMode) HandleSpecialKeyEvent(key tcell.Key) bool {
+	switch key {
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		if t.state.inputMode && len(t.state.inputDur) > 0 {
 			t.state.inputDur = t.state.inputDur[:len(t.state.inputDur)-1]
 			// Auto-remove trailing colon
 			if len(t.state.inputDur) > 0 && t.state.inputDur[len(t.state.inputDur)-1] == ':' {
 				t.state.inputDur = t.state.inputDur[:len(t.state.inputDur)-1]
 			}
+			return true
 		}
-		return true
 	}
 	return false
 }
@@ -168,10 +177,19 @@ func (t *timerMode) start() {
 	t.state.endTime = time.Now().Add(t.state.duration)
 	t.state.alarmTriggered = false
 
+	// Stop any previous goroutine before starting a new one
+	if t.ticker != nil {
+		t.ticker.Stop()
+	}
+	// Create a new stop channel for this run
+	t.stopCh = make(chan struct{})
+
 	// Start ticker for UI updates
 	t.ticker = time.NewTicker(100 * time.Millisecond)
+	stopCh := t.stopCh // capture for goroutine
 	go func() {
 		flashTicker := time.NewTicker(500 * time.Millisecond)
+		defer flashTicker.Stop()
 		flashOn := false
 		for {
 			select {
@@ -181,14 +199,15 @@ func (t *timerMode) start() {
 					t.state.alarmTriggered = true
 					t.state.running = false
 					t.ticker.Stop()
+					// Terminal bell
+					fmt.Print("\a")
 				}
 			case <-flashTicker.C:
 				if t.state.alarmTriggered {
 					flashOn = !flashOn
 					t.state.flashState = flashOn
 				}
-			case <-t.stopCh:
-				flashTicker.Stop()
+			case <-stopCh:
 				return
 			}
 		}
@@ -209,6 +228,13 @@ func (t *timerMode) pause() {
 	if t.ticker != nil {
 		t.ticker.Stop()
 	}
+	// Signal the goroutine to stop
+	select {
+	case <-t.stopCh:
+		// already closed
+	default:
+		close(t.stopCh)
+	}
 }
 
 // reset resets the timer to zero.
@@ -222,6 +248,13 @@ func (t *timerMode) reset() {
 	t.state.flashState = false
 	if t.ticker != nil {
 		t.ticker.Stop()
+	}
+	// Signal the goroutine to stop
+	select {
+	case <-t.stopCh:
+		// already closed
+	default:
+		close(t.stopCh)
 	}
 }
 
@@ -260,9 +293,9 @@ func (t *timerMode) Render() string {
 
 	// Flash effect when alarm triggered
 	if t.state.alarmTriggered && t.state.flashState {
-		b.WriteString(fmt.Sprintf("  [::b]%s[white]\n\n", "ALARM!"))
+		b.WriteString(fmt.Sprintf("  [red::b]⚠ %s ⚠[-::-]\n\n", "ALARM!"))
 	} else if t.state.alarmTriggered {
-		b.WriteString(fmt.Sprintf("  [::b]%s[white]\n\n", "ALARM!"))
+		b.WriteString(fmt.Sprintf("  [yellow::b]  %s  [-::-]\n\n", "ALARM!"))
 	} else {
 		b.WriteString(fmt.Sprintf("  [::b]%s[-]\n\n", formatTimerDuration(remaining)))
 	}

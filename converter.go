@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -60,15 +61,6 @@ func (c *converterMode) HandleKey(key rune) bool {
 	case ':':
 		if c.inputMode && !strings.Contains(c.inputTime, ":") {
 			c.inputTime += ":"
-		}
-		return true
-	case 127: // Backspace
-		if c.inputMode && len(c.inputTime) > 0 {
-			c.inputTime = c.inputTime[:len(c.inputTime)-1]
-			// Remove trailing colon if backspacing exposed one
-			if len(c.inputTime) > 0 && c.inputTime[len(c.inputTime)-1] == ':' {
-				c.inputTime = c.inputTime[:len(c.inputTime)-1]
-			}
 		}
 		return true
 	case 'c', 'C':
@@ -195,7 +187,10 @@ func (c *converterMode) getSourceTime() *time.Time {
 	}
 
 	// Return time with today's date in the source zone
-	return &parsed
+	now := time.Now().In(loc)
+	result := time.Date(now.Year(), now.Month(), now.Day(),
+		parsed.Hour(), parsed.Minute(), 0, 0, loc)
+	return &result
 }
 
 // convertTime converts a time to a target timezone.
@@ -210,4 +205,20 @@ func (c *converterMode) convertTime(t *time.Time, targetZone string) time.Time {
 // GetHelpText returns the help text for converter mode.
 func (c *converterMode) GetHelpText() string {
 	return "[darkgray]Keys:[white] C=Enter Time  ↑/↓=Select Zone  R=Reset  Esc=Exit"
+}
+
+// HandleSpecialKeyEvent handles non-rune key events (Enter, Backspace, etc.).
+func (c *converterMode) HandleSpecialKeyEvent(key tcell.Key) bool {
+	switch key {
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
+		if c.inputMode && len(c.inputTime) > 0 {
+			c.inputTime = c.inputTime[:len(c.inputTime)-1]
+			// Remove trailing colon if backspacing exposed one
+			if len(c.inputTime) > 0 && c.inputTime[len(c.inputTime)-1] == ':' {
+				c.inputTime = c.inputTime[:len(c.inputTime)-1]
+			}
+			return true
+		}
+	}
+	return false
 }

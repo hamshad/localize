@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 // stopwatchState holds the current stopwatch state.
@@ -70,14 +72,22 @@ func (s *stopwatchMode) start() {
 	s.state.running = true
 	s.state.startTime = time.Now()
 
+	// Stop any previous goroutine
+	if s.ticker != nil {
+		s.ticker.Stop()
+	}
+	// Create a new stop channel for this run
+	s.stopCh = make(chan struct{})
+
 	// Start ticker for UI updates
 	s.ticker = time.NewTicker(10 * time.Millisecond)
+	stopCh := s.stopCh // capture for goroutine
 	go func() {
 		for {
 			select {
 			case <-s.ticker.C:
 				// UI updates handled by main ticker
-			case <-s.stopCh:
+			case <-stopCh:
 				return
 			}
 		}
@@ -94,6 +104,12 @@ func (s *stopwatchMode) pause() {
 	if s.ticker != nil {
 		s.ticker.Stop()
 	}
+	// Signal the goroutine to stop
+	select {
+	case <-s.stopCh:
+	default:
+		close(s.stopCh)
+	}
 }
 
 // reset resets the stopwatch to zero.
@@ -104,6 +120,12 @@ func (s *stopwatchMode) reset() {
 	s.state.laps = nil
 	if s.ticker != nil {
 		s.ticker.Stop()
+	}
+	// Signal the goroutine to stop
+	select {
+	case <-s.stopCh:
+	default:
+		close(s.stopCh)
 	}
 }
 
@@ -166,6 +188,12 @@ func (s *stopwatchMode) Render() string {
 // GetHelpText returns the help text for stopwatch mode.
 func (s *stopwatchMode) GetHelpText() string {
 	return "[darkgray]Keys:[white] Space=Start/Pause  R=Reset  L=Lap  Esc=Exit (continues)"
+}
+
+// HandleSpecialKeyEvent handles non-rune key events (Enter, Backspace, etc.).
+func (s *stopwatchMode) HandleSpecialKeyEvent(key tcell.Key) bool {
+	// Stopwatch doesn't use Enter or Backspace
+	return false
 }
 
 // Stop stops the background ticker.

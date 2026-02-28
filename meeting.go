@@ -421,3 +421,9 @@ func (m *MeetingMode) GetHelpText() string {
 	}
 	return "[darkgray]Keys:[white] Enter=Back to Selection  B=Change Hours  C=Clear  Esc=Exit"
 }
+
+// HandleSpecialKeyEvent handles non-rune key events (Enter, Backspace, etc.).
+func (m *MeetingMode) HandleSpecialKeyEvent(key tcell.Key) bool {
+	// Meeting mode handles special keys via HandleSpecialKey in the main input handler
+	return false
+}
