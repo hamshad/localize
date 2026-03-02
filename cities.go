@@ -16,6 +16,40 @@ type City struct {
 	Color       tcell.Color
 }
 
+// Abbreviation returns a 3-letter code for the city.
+func (c City) Abbreviation() string {
+	// First check aliases for known good abbreviations
+	for abbr, name := range cityAliases {
+		if name == c.Name && len(abbr) == 3 {
+			// Convert to uppercase
+			upper := make([]byte, 3)
+			for i := 0; i < 3; i++ {
+				ch := abbr[i]
+				if ch >= 'a' && ch <= 'z' {
+					ch -= 'a' - 'A'
+				}
+				upper[i] = ch
+			}
+			return string(upper)
+		}
+	}
+
+	// Fallback: first 3 letters of city name
+	name := c.Name
+	if len(name) > 3 {
+		name = name[:3]
+	}
+	upper := make([]byte, len(name))
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch >= 'a' && ch <= 'z' {
+			ch -= 'a' - 'A'
+		}
+		upper[i] = ch
+	}
+	return string(upper)
+}
+
 // AllCities is the comprehensive database of cities.
 var AllCities = []City{
 	// Americas

@@ -16,6 +16,7 @@ type NavigationState struct {
 	selectedCity     *Region        // currently selected city details
 	selectedTime     time.Time      // time when selected
 	selectedTimezone *time.Location // timezone of selected city
+	pulseState       bool           // toggles for pulsing effect
 }
 
 // global navigation state

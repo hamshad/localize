@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"time"
 )
@@ -73,43 +72,17 @@ func getColorForDayPhase(phase string) string {
 
 // colorizeBrailleMapWithDayNight adds day/night coloring to the braille map.
 // Each longitude position represents a different local time.
-func colorizeBrailleMapWithDayNight(brailleMap string) string {
+// brailleCols and brailleRows are the dimensions of the braille grid.
+func colorizeBrailleMapWithDayNight(brailleMap string, brailleCols, brailleRows int) string {
 	lines := strings.Split(strings.TrimRight(brailleMap, "\n"), "\n")
 
-	// Map dimensions: 240 columns (each 2 chars = 1 braille), 96 rows
+	// Map dimensions: 2 * brailleCols x 4 * brailleRows (pixels)
 	// Longitude ranges from -180 to 180
-	// We need to determine the local time for each column position
 
 	now := time.Now().UTC()
 
-	// First, overlay city markers onto map lines
-	for _, m := range cityMarkers {
-		if m.row < len(lines) {
-			runes := []rune(lines[m.row])
-			label := m.label
-			if m.col+len(label) <= len(runes) {
-				before := string(runes[:m.col])
-				after := string(runes[m.col+len(label):])
-				lines[m.row] = before + fmt.Sprintf("[%s::b]%s[-::-]", m.color, label) + after
-			}
-		}
-	}
-
-	// Now colorize based on day/night if enabled
-	if !dayNightOverlayEnabled {
-		// Original behavior: all green
-		var sb strings.Builder
-		for _, line := range lines {
-			sb.WriteString("[green]")
-			sb.WriteString(line)
-			sb.WriteString("[-]\n")
-		}
-		return sb.String()
-	}
-
 	// Apply day/night coloring
-	// Each braille column represents about 3 degrees of longitude (360/120 = 3)
-	brailleCols := 120 // 240 / 2
+	// Each braille column represents degreesPerCol longitude (360/brailleCols)
 	degreesPerCol := 360.0 / float64(brailleCols)
 
 	for row := 0; row < len(lines); row++ {
