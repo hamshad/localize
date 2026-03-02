@@ -23,7 +23,7 @@
 | 02 | 1/1 | Complete    | 2026-02-28 | 2026-02-28 |
 | 03 | 1/1 | Complete    | 2026-02-28 | 2026-02-28 |
 | 04 | 1/1 | Complete    | 2026-02-28 | 2026-02-28 |
-| 05 | Full-Screen Map UI Redesign | 3 plans | In Progress | - |
+| 05 | 2/3 | In Progress|  | - |
 
 ---
 

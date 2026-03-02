@@ -7,7 +7,7 @@ Planning State
 **Current Phase:** 05
 **Current Plan:** Not started
 **Total Plans:** 3
-**Progress:** [▓▓▓▓░░░░░░] 33%
+**Progress:** [█████████░] 86%
 
 ## Decisions
 
@@ -24,6 +24,10 @@ Planning State
 - [Phase 05-ui-redesign]: Menu via M/Space/Enter, features in centered modal overlays
 - [Phase 05-ui-redesign]: ASCII analog clock in feature overlays
 - [Phase 05-ui-redesign]: Minimal 1-row status bar, [=] menu indicator, no footer/header
+- [Phase 05-ui-redesign]: Fullscreen map layout as the primary UI instead of split panels
+- [Phase 05-ui-redesign]: Dynamic city markers on the map with abbreviation and live 12hr time
+- [Phase 05-ui-redesign]: 1-row status bar for selected city details and system time
+- [Phase 05-ui-redesign]: Pulsing/blinking effect for the selected city marker
 
 ## Blockers
 
