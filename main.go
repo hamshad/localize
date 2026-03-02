@@ -404,6 +404,9 @@ func main() {
 	// ── MODE SYSTEM ──
 	mm := newModeManager()
 
+	// ── OVERLAY SYSTEM ──
+	om := NewOverlayManager(app, pages, mm)
+
 	// Create and register mode handlers
 	converter := newConverterMode(app)
 	stopwatch := newStopwatchMode()
@@ -567,93 +570,69 @@ func main() {
 			statusText = strings.Replace(statusText, " [darkgray][=][-]", strings.Repeat(" ", padding)+" [darkgray][=][-]", 1)
 		}
 		statusBar.SetText(statusText)
+
+		// 6. Update overlays
+		if om.state == OverlayFeature {
+			om.renderFeature()
+		}
 	}
 
 	// ── KEY BINDINGS ──
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// Navigation keys work in Normal mode
-		if mm.GetCurrentMode() == ModeNormal {
-			switch event.Key() {
-			case tcell.KeyEscape:
-				if IsNavigationActive() {
-					Deselect()
-					updateUI()
-					return nil
-				}
-				app.Stop()
-				return nil
-			case tcell.KeyUp:
-				NavigateUp(leftRegions, rightRegions)
+		// Overlay system takes priority
+		if om.state != OverlayNone {
+			if om.HandleInput(event) {
 				updateUI()
 				return nil
-			case tcell.KeyDown:
-				NavigateDown(leftRegions, rightRegions)
-				updateUI()
-				return nil
-			case tcell.KeyTab:
-				// Cycles through cities
-				NavigateDown(leftRegions, rightRegions)
-				updateUI()
-				return nil
-			case tcell.KeyEnter:
-				if IsNavigationActive() {
-					// Plan 03 will implement details overlay
-					return nil
-				}
 			}
+			return event
 		}
 
-		// Delegate to mode handlers...
-		// (Keeping existing mode logic)
+		// Map View (OverlayNone)
 		switch event.Key() {
 		case tcell.KeyEscape:
-			if mm.GetCurrentMode() != ModeNormal {
-				mm.SwitchTo(ModeNormal)
+			if IsNavigationActive() {
+				Deselect()
 				updateUI()
 				return nil
 			}
 			app.Stop()
 			return nil
-		case tcell.KeyRune:
-			r := event.Rune()
-			if mm.GetCurrentMode() == ModeNormal {
-				switch r {
-				case 'c', 'C':
-					mm.SwitchTo(ModeConverter)
-					updateUI()
-					return nil
-				case 's', 'S':
-					mm.SwitchTo(ModeStopwatch)
-					updateUI()
-					return nil
-				case 't', 'T':
-					mm.SwitchTo(ModeTimer)
-					updateUI()
-					return nil
-				case 'a', 'A':
-					mm.SwitchTo(ModeAlarm)
-					updateUI()
-					return nil
-				case 'm', 'M':
-					mm.SwitchTo(ModeMeeting)
-					updateUI()
-					return nil
-				case 'd', 'D':
-					ToggleDayNightOverlay()
-					updateUI()
-					return nil
-				case 'q', 'Q':
-					app.Stop()
-					return nil
-				}
+		case tcell.KeyUp:
+			NavigateUp(leftRegions, rightRegions)
+			updateUI()
+			return nil
+		case tcell.KeyDown:
+			NavigateDown(leftRegions, rightRegions)
+			updateUI()
+			return nil
+		case tcell.KeyTab:
+			NavigateDown(leftRegions, rightRegions)
+			updateUI()
+			return nil
+		case tcell.KeyEnter:
+			if IsNavigationActive() {
+				// Feature selected on map -> open menu
+				om.ShowMenu()
+				updateUI()
+				return nil
 			}
-			// Delegate to mode handler
-			if mm.GetCurrentMode() != ModeNormal {
-				handled := mm.HandleKey(r)
-				if handled {
-					updateUI()
-					return nil
-				}
+			om.ShowMenu()
+			updateUI()
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'm', 'M', ' ':
+				om.ShowMenu()
+				updateUI()
+				return nil
+			case 'd', 'D':
+				ToggleDayNightOverlay()
+				updateUI()
+				return nil
+			case 'q', 'Q':
+				app.Stop()
+				return nil
 			}
 		}
 		return event
