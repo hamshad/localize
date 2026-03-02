@@ -7,7 +7,7 @@ Planning State
 **Current Phase:** 05
 **Current Plan:** Not started
 **Total Plans:** 3
-**Progress:** [█████████░] 86%
+**Progress:** [██████████] 100%
 
 ## Decisions
 
@@ -28,6 +28,7 @@ Planning State
 - [Phase 05-ui-redesign]: Dynamic city markers on the map with abbreviation and live 12hr time
 - [Phase 05-ui-redesign]: 1-row status bar for selected city details and system time
 - [Phase 05-ui-redesign]: Pulsing/blinking effect for the selected city marker
+- [Phase 05-ui-redesign]: Overlay/Modal System — Used tview.Pages for dynamic overlay management over the base map
 
 ## Blockers
 
